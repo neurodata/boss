@@ -86,6 +86,22 @@ class Cutout(APIView):
         else:
             no_cache = False
 
+        if "window" in request.query_params:
+            try:
+                if len(request.query_params["window"].split(",")) == 2:
+                    window = (float(request.query_params["window"].split(",")[0]),
+                              float(request.query_params["window"].split(",")[1]))
+                    if window[0] == window[1]:
+                        return BossHTTPError(
+                                 "The lower window bound ({}) cannot be equal to the upper window bound ({})."
+                                 .format(window[0], window[1]), ErrorCodes.TYPE_ERROR)
+                else:
+                    window = (0., float(request.query_params["window"]))
+            except ValueError:
+                return BossHTTPError("Unable to convert window values to float.", ErrorCodes.TYPE_ERROR)
+        else:
+            window = None
+
         if isinstance(request.data, BossParserError):
             return request.data.to_http()
 
@@ -134,7 +150,8 @@ class Cutout(APIView):
         data = cache.cutout(resource, corner, extent, req.get_resolution(), [req.get_time().start, req.get_time().stop],
                             filter_ids=req.get_filter_ids(), iso=iso, no_cache=no_cache)
         to_renderer = {"time_request": req.time_request,
-                       "data": data}
+                       "data": data,
+                       "window": window}
 
         # Send data to renderer
         return Response(to_renderer)

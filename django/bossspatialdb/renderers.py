@@ -138,7 +138,18 @@ class JpegRenderer(renderers.BaseRenderer):
             jr = JSONRenderer()
             return jr.render(err_msg, 'application/json', renderer_context)
 
-        if renderer_context['view'].bit_depth != 8:
+        if renderer_context['view'].bit_depth == 16:
+            # Convert to 8-bit data by windowing
+            window = data["window"]
+            if window is None:
+                window = [0., 65535.]
+
+            data["data"].data = np.clip(data["data"].data, window[0], window[1])
+            data["data"].data = np.subtract(data["data"].data, window[0])
+            data["data"].data = np.multiply(data["data"].data, 255.0/(window[1] - window[0]))
+            data["data"].data = data["data"].data.astype(dtype=np.uint8, copy=False)
+
+        elif renderer_context['view'].bit_depth != 8:
             # This renderer only works on uint8 data
             renderer_context["response"].status_code = 400
             renderer_context['response']['Content-Type'] = 'application/json'
